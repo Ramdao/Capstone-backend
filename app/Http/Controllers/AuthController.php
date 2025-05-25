@@ -3,31 +3,56 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Client; // Make sure to import Client model
+use App\Models\Stylist; // Make sure to import Stylist model
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule; 
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
         $fields = $request->validate([
-            'name' => 'required|string',
-            'email' => 'required|string|email|unique:users,email',
-            'password' => 'required|string|confirmed',
-            'role' => 'in:client,stylist,admin'
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|unique:users,email|max:255',
+            'password' => 'required|string|confirmed|min:8',
+            'role' => 'required|in:client,stylist,admin', // Role is now required
+            // Client specific fields (nullable, only if role is 'client')
+            'country' => 'nullable|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'body_type' => 'nullable|string|max:255',
+            'colors' => 'nullable|json', // Expect JSON string from frontend
+            // stylist_id for clients is chosen later, not at registration
         ]);
 
         $user = User::create([
             'name' => $fields['name'],
             'email' => $fields['email'],
             'password' => Hash::make($fields['password']),
-            'role' => $fields['role'] ?? 'client',
+            'role' => $fields['role'],
         ]);
 
-        // You might want to log the user in immediately after registration
-        // Auth::login($user); // This would set the session for the newly registered user
+        // Create the specific profile based on the role
+        if ($user->role === 'client') {
+            $user->client()->create([
+                'country' => $fields['country'] ?? null,
+                'city' => $fields['city'] ?? null,
+                'body_type' => $fields['body_type'] ?? null,
+                'colors' => $fields['colors'] ?? null // Store as JSON string, Laravel's cast will handle
+            ]);
+        } elseif ($user->role === 'stylist') {
+            $user->stylist()->create([]); // No specific fields for stylist profile yet
+        }
+        // Admin role doesn't need a specific profile table based on your description
+
+        // Eager load the profile for the response
+        if ($user->role === 'client') {
+            $user->load('client');
+        } elseif ($user->role === 'stylist') {
+            $user->load('stylist');
+        }
 
         return response()->json(['user' => $user, 'message' => 'Registration successful'], 201);
     }
@@ -46,6 +71,13 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user(); // Get the authenticated user
+        // Eager load the profile for the response after login
+        if ($user->role === 'client') {
+            $user->load('client.stylist.user'); // Load stylist's user for chosen stylist's name
+        } elseif ($user->role === 'stylist') {
+            $user->load('stylist.clients.user'); // Load clients' users for their names
+        }
+
         return response()->json(['message' => 'Logged in', 'user' => $user]);
     }
 
@@ -59,31 +91,56 @@ class AuthController extends Controller
     }
 
     /**
-     * Update the authenticated user's profile.
+     * Get the currently authenticated user's details and their specific profile.
+     * This method is called by the frontend's fetchAuthenticatedUser.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function authenticatedUser(Request $request)
+    {
+        $user = $request->user();
+        // Load the specific profile based on role, eager load nested relationships
+        if ($user->role === 'client') {
+            $user->load('client.stylist.user'); // Load client profile, and if a stylist is chosen, load their user details
+        } elseif ($user->role === 'stylist') {
+            $user->load('stylist.clients.user'); // Load stylist profile, and their clients' user details
+        }
+        return response()->json($user); // Return the user object directly
+    }
+
+    /**
+     * Update the authenticated user's profile (general user fields and client profile fields).
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function updateProfile(Request $request)
     {
-        // Get the currently authenticated user
         $user = Auth::user();
 
-        // Validate the incoming request data
-        $fields = $request->validate([
-            'name' => 'sometimes|string|max:255', // 'sometimes' means field is optional
+        $validationRules = [
+            'name' => 'sometimes|string|max:255',
             'email' => [
                 'sometimes',
                 'string',
                 'email',
                 'max:255',
-                // Ensure email is unique, but ignore the current user's email
                 Rule::unique('users')->ignore($user->id),
             ],
-            'password' => 'nullable|string|min:8|confirmed', // 'nullable' means password can be empty
-            // Do NOT allow 'role' to be updated via this endpoint for security reasons.
-            // Role changes should typically be handled by an admin interface.
-        ]);
+            'password' => 'nullable|string|min:8|confirmed',
+        ];
+
+        // Add client-specific validation rules based on role
+        if ($user->role === 'client') {
+            $validationRules['country'] = 'nullable|string|max:255';
+            $validationRules['city'] = 'nullable|string|max:255';
+            $validationRules['body_type'] = 'nullable|string|max:255';
+            $validationRules['colors'] = 'nullable|json'; // CHANGED: Expect JSON string
+        }
+        // Stylist currently has no specific updatable fields, so no extra rules needed
+
+        $fields = $request->validate($validationRules);
 
         // Update user fields
         if (isset($fields['name'])) {
@@ -95,8 +152,23 @@ class AuthController extends Controller
         if (isset($fields['password'])) {
             $user->password = Hash::make($fields['password']);
         }
+        $user->save();
 
-        $user->save(); // Save the changes to the database
+        // Update specific profile fields
+        if ($user->role === 'client' && $user->client) {
+            $clientProfile = $user->client;
+            if (isset($fields['country'])) $clientProfile->country = $fields['country'];
+            if (isset($fields['city'])) $clientProfile->city = $fields['city'];
+            if (isset($fields['body_type'])) $clientProfile->body_type = $fields['body_type'];
+            if (isset($fields['colors'])) $clientProfile->colors = $fields['colors']; // Laravel's cast will handle JSON string to array
+            $clientProfile->save();
+            // Eager load client profile for response, including stylist user
+            $user->load('client.stylist.user');
+        } elseif ($user->role === 'stylist' && $user->stylist) {
+            // If stylist had updatable fields, they would be handled here
+            // For now, just ensure the stylist profile is loaded if needed for response
+            $user->load('stylist.clients.user');
+        }
 
         return response()->json(['user' => $user, 'message' => 'Profile updated successfully']);
     }
@@ -110,11 +182,19 @@ class AuthController extends Controller
     {
         $user = Auth::user(); // Get the currently authenticated user
 
-        // Log out the user before deleting their account to invalidate their session
-        Auth::guard('web')->logout();
+        // Optional: Delete associated profiles (e.g., Client, Stylist) first
+        if ($user->role === 'client' && $user->client) {
+            $user->client->delete();
+        } elseif ($user->role === 'stylist' && $user->stylist) {
+            $user->stylist->delete();
+        }
 
-        // Delete the user record from the database
-        $user->delete();
+        $user->tokens()->delete(); // Delete all Sanctum tokens for the user
+        Auth::guard('web')->logout(); // Log out the user before deleting their account
+        // $request->session()->invalidate(); // These are for web guard, not typically needed for API token logout
+        // $request->session()->regenerateToken();
+
+        $user->delete(); // Delete the user record
 
         return response()->json(['message' => 'Account deleted successfully']);
     }
