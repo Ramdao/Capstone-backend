@@ -11,7 +11,7 @@ class Stylist extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id']; // Only user_id initially
+    protected $fillable = ['user_id']; 
 
     /**
      * Get the user that owns the stylist profile.

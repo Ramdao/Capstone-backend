@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash; 
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,11 +13,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+       
+        // It's good practice to use firstOrCreate to prevent duplicates if you run the seeder multiple times
+        User::firstOrCreate(
+            ['email' => 'admin@example.com'], 
+            [
+                'name' => 'Admin User',
+                'password' => Hash::make('test1234'), 
+                'role' => 'admin', 
+                'email_verified_at' => now(), 
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+       
+
+        
     }
 }
