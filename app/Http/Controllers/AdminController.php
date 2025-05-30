@@ -12,7 +12,11 @@ use App\Http\Controllers\Controller;
 
 class AdminController extends Controller
 {
-    
+    public function __construct()
+    {
+        
+        $this->middleware('can:access-admin-dashboard');
+    }
 
     /**
      * Get all clients.

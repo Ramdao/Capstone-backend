@@ -7,11 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-// No need for 'use Illuminate\Database\Eloquent\Relations\HasOne;' here if you remove the type hint
-// But keep if you use it elsewhere. For these methods, it's safer to omit.
 
-use App\Models\Client; // Make sure this is present
-use App\Models\Stylist; // Make sure this is present
+use App\Models\Client; 
+use App\Models\Stylist; 
 
 
 class User extends Authenticatable
@@ -64,5 +62,11 @@ class User extends Authenticatable
     public function stylist() 
     {
         return $this->hasOne(Stylist::class);
+    }
+
+    public function isAdmin()
+    {
+        
+        return $this->role === 'admin';
     }
 }
