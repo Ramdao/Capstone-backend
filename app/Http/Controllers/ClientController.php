@@ -33,7 +33,7 @@ class ClientController extends Controller
 
         $validatedData = $request->validate($rules);
 
-        $client = $user->client; // Assuming a 'client' relationship on the User model
+        $client = $user->client; 
 
         if (!$client) {
             return response()->json(['message' => 'Client profile not found.'], 404);

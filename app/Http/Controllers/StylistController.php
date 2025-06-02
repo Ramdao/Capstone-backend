@@ -37,8 +37,7 @@ class StylistController extends Controller
 
         // Add validation rules specific to stylist profile if any
         $validated = $request->validate([
-            // 'experience_years' => ['nullable', 'integer', 'min:0'],
-            // 'specialties' => ['nullable', 'string'],
+            
         ]);
 
         $stylist = $user->stylist; // Assuming a 'stylist' relationship on the User model
@@ -47,14 +46,7 @@ class StylistController extends Controller
             return response()->json(['message' => 'Stylist profile not found.'], 404);
         }
 
-        // Update stylist profile fields
-        // if (isset($validated['experience_years'])) {
-        //     $stylist->experience_years = $validated['experience_years'];
-        // }
-        // if (isset($validated['specialties'])) {
-        //     $stylist->specialties = $validated['specialties'];
-        // }
-        // $stylist->save();
+        
 
         return response()->json(['message' => 'Stylist profile updated successfully!', 'stylist' => $stylist], 200);
     }
@@ -72,7 +64,7 @@ class StylistController extends Controller
         }
 
         // Load the stylist's profile and their associated clients
-        // Eager load the client's user details if you want their name/email
+       
         $stylist = $user->load(['stylist.clients.user']); // user->stylist->clients->user
 
         // Access the clients through the stylist relationship

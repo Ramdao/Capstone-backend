@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Client; // Make sure to import Client model
-use App\Models\Stylist; // Make sure to import Stylist model
+use App\Models\Client; 
+use App\Models\Stylist; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -18,13 +18,13 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|unique:users,email|max:255',
             'password' => 'required|string|confirmed|min:8',
-            'role' => 'required|in:client,stylist,admin', // Role is now required
-            // Client specific fields (nullable, only if role is 'client')
+            'role' => 'required|in:client,stylist,admin',
+           
             'country' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:255',
             'body_type' => 'nullable|string|max:255',
-            'colors' => 'nullable|json', // Expect JSON string from frontend
-            // stylist_id for clients is chosen later, not at registration
+            'colors' => 'nullable|json', 
+            
         ]);
 
         $user = User::create([
@@ -40,12 +40,12 @@ class AuthController extends Controller
                 'country' => $fields['country'] ?? null,
                 'city' => $fields['city'] ?? null,
                 'body_type' => $fields['body_type'] ?? null,
-                'colors' => $fields['colors'] ?? null // Store as JSON string, Laravel's cast will handle
+                'colors' => $fields['colors'] ?? null 
             ]);
         } elseif ($user->role === 'stylist') {
-            $user->stylist()->create([]); // No specific fields for stylist profile yet
+            $user->stylist()->create([]); 
         }
-        // Admin role doesn't need a specific profile table based on your description
+        
 
         // Eager load the profile for the response
         if ($user->role === 'client') {
@@ -136,7 +136,7 @@ class AuthController extends Controller
             $validationRules['country'] = 'nullable|string|max:255';
             $validationRules['city'] = 'nullable|string|max:255';
             $validationRules['body_type'] = 'nullable|string|max:255';
-            $validationRules['colors'] = 'nullable|json'; // CHANGED: Expect JSON string
+            $validationRules['colors'] = 'nullable|json'; 
         }
         // Stylist currently has no specific updatable fields, so no extra rules needed
 
@@ -182,7 +182,7 @@ class AuthController extends Controller
     {
         $user = Auth::user(); // Get the currently authenticated user
 
-        // Optional: Delete associated profiles (e.g., Client, Stylist) first
+       
         if ($user->role === 'client' && $user->client) {
             $user->client->delete();
         } elseif ($user->role === 'stylist' && $user->stylist) {
@@ -191,8 +191,7 @@ class AuthController extends Controller
 
         $user->tokens()->delete(); // Delete all Sanctum tokens for the user
         Auth::guard('web')->logout(); // Log out the user before deleting their account
-        // $request->session()->invalidate(); // These are for web guard, not typically needed for API token logout
-        // $request->session()->regenerateToken();
+        
 
         $user->delete(); // Delete the user record
 

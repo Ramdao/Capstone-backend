@@ -6,7 +6,7 @@ use Laravel\Sanctum\Http\Controllers\CsrfCookieController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\StylistController;
-use App\Http\Controllers\AdminController; // Make sure this is present
+use App\Http\Controllers\AdminController; 
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
