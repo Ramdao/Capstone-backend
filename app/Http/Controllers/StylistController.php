@@ -15,8 +15,7 @@ class StylistController extends Controller
      */
     public function index()
     {
-        // Fetch all stylists and eager load their associated user record
-        // This ensures you have access to the user's name/email when fetching stylists
+       
         $stylists = Stylist::with('user')->get();
 
         // Return them as a JSON response
